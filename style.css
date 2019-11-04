@@ -1,0 +1,28 @@
+body {
+    font-family: sans-serif;
+}
+
+nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.selected {
+    border: solid 1px black;
+    padding: 15px;
+}
+
+.products-title {
+    padding: 2px
+}
+
+ul {
+    list-style-type: none;
+    padding: 2px
+}
+
+li {
+    padding: 5px;
+    border-bottom-style: solid 1px black;
+}

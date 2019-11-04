@@ -1,0 +1,237 @@
+<html>
+
+<head>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js'></script>
+</head>
+
+<body>
+    <div id='root'></div>
+    <script type='text/babel'>
+        //destructure the properties from these libraries
+        const { Component } = React;
+        const { render } = ReactDOM;
+        const { HashRouter, Switch, Link, Route, Redirect } = ReactRouterDOM;
+
+        const Home = ({products, offerings}) => {
+            const averagePrice = averageOfferings(offerings);
+
+            return (
+                <div>
+                    <h1>Home</h1>
+                    <div>We have {products.length} products with an average price of {averagePrice}</div>
+                </div>
+            )
+            
+        };
+
+        //function Products is declared here. It is called inside the React Router render method.
+        const Products = ({products, companies, offerings, update}) => {
+            const processedOfferings = processOfferings(companies, products, offerings);
+            //groupedOfferingsByProduct is an object, key is product names, value is offerings array (a set of offerings objects)
+            const groupedOfferingsByProduct = groupOfferingsByProduct(offerings);
+            //each modified product has an array of offerings
+            const modifiedProducts = modifyProducts(products, groupedOfferingsByProduct);
+            if(modifiedProducts){
+                update(modifiedProducts);
+            }
+            
+
+            return (
+                <div>
+                    <h1 className="products-title">Products</h1>
+                    <ul>
+                    {
+                        modifiedProducts.map( (product, idx) => {
+                            return(
+                            <li key={idx}>
+                                <div>Product:{product['name']}</div>
+                                <div>Suggested Price:{product['suggestedPrice']}</div>
+                                <div>Average Price:{product['average-price']}</div>
+                                <div>Lowest Price:{product['lowest-offering-price']} offered by {product['lowest-offering-by']}</div>
+                            </li>
+                            )}
+                        )
+                    }
+                    </ul>
+                </div>
+            )
+        };
+
+        function averageOfferings(offerings){
+            const sumOfPrices = offerings.reduce((sum, offering) => {
+                return sum + offering['price']
+            },0);
+
+            const averagePrice = sumOfPrices / offerings.length;
+            return averagePrice.toFixed(2);
+        }
+
+         //add company name and product name to each offering
+         function processOfferings(companies, products, offerings){
+            return offerings.map(currentOffering => {
+                //add company name to each offering based on companyId
+                let targetCompany = companies.filter(company => {
+                    if(company['id'] === currentOffering['companyId']){
+                        return company;
+                    }
+                });
+                currentOffering['companyName'] = targetCompany[0]['name'];
+                //add product name to each offering based on productId
+                let targetProduct = products.filter(product => {
+                    if(product['id'] === currentOffering['productId']){
+                        return product;
+                    }
+                });
+                currentOffering['productName'] = targetProduct[0]['name'];
+
+                return currentOffering;
+            })
+
+        }
+        //group offerings by product name
+        function groupOfferingsByProduct(offerings){
+            let groupedOfferings = {};
+            offerings.forEach(currentOffering => {
+                const companyName = currentOffering['companyName'];
+                const productName = currentOffering['productName'];
+                const price = currentOffering['price']
+                const productId = currentOffering['productId'];
+
+                if(!groupedOfferings.hasOwnProperty(productName)){
+                    groupedOfferings[productName] = [];
+                }
+
+                let eachOffering = {};
+                eachOffering['company-name'] = companyName;
+                eachOffering['price'] = price;
+
+                groupedOfferings[productName].push(eachOffering);
+            
+            })
+            
+            return groupedOfferings;
+        }
+
+        //add average offering price, the lowest offering and offered company name to each product object
+        function modifyProducts(products, groupedOfferings){
+            return products.map(product => {
+                const productName = product['name'];
+                for(let currentProduct in groupedOfferings){
+                    if(currentProduct === productName){
+                        let sum = 0
+                        let priceList = []
+                        groupedOfferings[currentProduct].map(offering => {
+                            sum += offering['price'];
+                            priceList.push(offering['price'])
+                        })
+                        
+                        const averagePrice = sum/groupedOfferings[currentProduct].length;
+                        
+                        const lowestPrice = Math.min.apply(Math,priceList);
+                        let lowestPriceOfferedCompany = ''
+                        groupedOfferings[currentProduct].map(offering => {
+                            if(offering['price'] === lowestPrice){
+                                lowestPriceOfferedCompany = offering['company-name'];
+                            }
+                        })
+                        
+                        product['average-price'] = averagePrice.toFixed(2);
+                        product['lowest-offering-price'] = lowestPrice.toFixed(2);
+                        product['lowest-offering-by'] = lowestPriceOfferedCompany;
+                    }
+                }
+                return product;
+            })
+          
+        }
+
+
+        const Nav = (props) => {
+            const path = props.location.pathname;
+            return (
+                <nav>
+                    <Link to='/home' className={ path==='/home' ? 'selected' : ''}>Home</Link>
+                    <Link to='/products' className={ path==='/products' ? 'selected' : ''}>Products</Link>
+                </nav>
+            )
+        }
+
+
+        class App extends Component{
+            constructor(){
+                super();
+                this.state = {
+                    products: [],
+                    companies:[],
+                    offerings:[]
+                }
+            this.update = this.update.bind(this)
+            };
+
+
+            async componentDidMount(){
+                console.log('component mounted')
+                // const productsResponse = await axios.get('https://acme-users-api-rev.herokuapp.com/api/products');
+                // this.setState({products: productsResponse.data});
+                
+                // const companiesResponse = await axios.get('https://acme-users-api-rev.herokuapp.com/api/companies');
+                // this.setState({companies: companiesResponse.data});
+                
+                // const offeringsResponse = await axios.get('https://acme-users-api-rev.herokuapp.com/api/offerings');
+                // this.setState({offerings: offeringsResponse.data});
+                try{
+                    const [productResponse, companiesResponse, offeringsResponse] = await Promise.all([
+                    axios.get('https://acme-users-api-rev.herokuapp.com/api/products'),
+                    axios.get('https://acme-users-api-rev.herokuapp.com/api/companies'),
+                    axios.get('https://acme-users-api-rev.herokuapp.com/api/offerings')
+                ])
+                this.setState({
+                    products: productResponse.data, companies:companiesResponse.data, offerings: offeringsResponse.data
+                })
+                } catch(e){
+                    console.error('error getting stuff',e)
+                }
+            };
+
+            //updated products data with axios put
+            async update(products){
+                //WARNING:this api doesn't allow me to update products data...
+                //const updatedProducts = await axios.put('https://acme-users-api-rev.herokuapp.com/api/products', products).data;
+                // console.log(updatedProducts)
+                // this.setState({products: updatedProducts});
+            }
+                   
+
+            render(){
+                //new states pass in here, then pass to Product func in the Router
+                const { products, companies, offerings } = this.state;
+                
+                return (
+                    <div>
+                        <h1>Acme Product Averages React</h1>
+                        <HashRouter>
+                            <Route component={ Nav } />
+                            <Switch>
+                                <Route path='/home' render={ ()=> <Home products={products} companies={companies} offerings={offerings} />} />
+                                <Route path='/products' render={ ()=> <Products products={products} companies={companies} offerings={offerings} update={this.update}/>} />
+                                <Redirect to='/home' />
+                            </Switch>
+                        </HashRouter >
+                    </div>
+                )
+            };
+            
+        };
+
+        const root = document.querySelector('#root');
+        render(<App />, root);
+    </script>
+</body>
+
+</html>
